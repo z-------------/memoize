@@ -1,6 +1,10 @@
 import unittest
 import memoize
 
+template repeat(count, body: untyped): untyped =
+  for i in 0..<count:
+    body
+
 test "it works":
   const
     N = 10
@@ -28,3 +32,20 @@ test "it works":
   check callCount == N + 1
   check fibMemoized(NDoubled) == fib(NDoubled)
   check callCount == N + 1 + N
+
+test "it definitely works":
+  var callCount = 0
+
+  proc foo(a: int; b: char): string {.memoize.} =
+    callCount.inc
+    return $b
+
+  repeat 2:
+    check foo(0, 'a') == "a"
+    check callCount == 1
+  repeat 2:
+    check foo(0, 'b') == "b"
+    check callCount == 2
+  repeat 2:
+    check foo(1, 'a') == "a"
+    check callCount == 3
