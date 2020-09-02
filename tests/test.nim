@@ -1,11 +1,13 @@
 import unittest
 import memoize
 
+import ./exported
+
 template repeat(count, body: untyped): untyped =
   for i in 0..<count:
     body
 
-test "it works":
+test "result caching":
   const
     N = 10
     NHalved = N shr 1
@@ -33,7 +35,7 @@ test "it works":
   check fibMemoized(NDoubled) == fib(NDoubled)
   check callCount == N + 1 + N
 
-test "it definitely works":
+test "handling of parameter types":
   var callCount = 0
 
   proc foo(a: int; b: char): string {.memoize.} =
@@ -49,3 +51,6 @@ test "it definitely works":
   repeat 2:
     check foo(1, 'a') == "a"
     check callCount == 3
+
+test "preservation of export flag":
+  check someExportedProc(5) == "5"

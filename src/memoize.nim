@@ -3,11 +3,34 @@ import tables
 
 export tables.add, tables.`[]`
 
+func procIsExported(procDef: NimNode): bool =
+  let nameNode = procDef[0]
+  case nameNode.kind
+  of nnkIdent:
+    false
+  of nnkPostfix:
+    true
+  else:
+    raise newException(ValueError, "Invalid proc node")
+
+func createProcNameNode(nameNode: NimNode; isExported: bool): NimNode =
+  if isExported:
+    nnkPostfix.newTree(ident("*"), nameNode)
+  else:
+    nameNode
+
 macro memoize*(node: untyped): untyped =
+  # echo node.astGenRepr
+
   result = newStmtList()
 
   let
-    originalProcName = node[0].strVal
+    originalProcIsExported = procIsExported(node)
+    originalProcName =
+      if originalProcIsExported:
+        node[0][1].strVal
+      else:
+        node[0].strVal
     newProcNameNode = genSym(nskProc, originalProcName & "Proc")
     formalParamsNode = node[3]  # includes the return type
     returnTypeNode = formalParamsNode[0]
@@ -38,7 +61,7 @@ macro memoize*(node: untyped): untyped =
 
   # helper proc declaration
   var newProcDecl = nnkProcDef.newTree(
-    newIdentNode(originalProcName),
+    createProcNameNode(ident(originalProcName), originalProcIsExported),
     newEmptyNode(),  # unused for procs
     newEmptyNode(),  # generic params
     formalParamsNode,
@@ -56,7 +79,7 @@ macro memoize*(node: untyped): untyped =
   result.add(newProcDecl)
 
   # add the renamed original proc declaration
-  node[0] = newProcNameNode
+  node[0] = createProcNameNode(newProcNameNode, originalProcIsExported)
   result.add(node)
   
   # echo result.repr
